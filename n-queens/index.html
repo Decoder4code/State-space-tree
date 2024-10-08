@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Queens Problem</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background-color: rgb(241, 223, 223);
+        }
+        #chessboard {
+            display: grid;
+            gap: 1px;
+            margin: 20px;
+            border:2px solid black;
+        }
+        .square {
+            width: 50px;
+            height: 50px;
+        }
+        .white {
+            background-color: white;
+        }
+        .black {
+            background-color: black;
+        }
+        .queen {
+            font-size: 30px;
+            color: rgb(62, 231, 127);
+            text-align: center;
+            margin-left:9px;
+            line-height: 50px;
+        }
+        #tree-container {
+            width: 80%;
+            margin: 20px;
+            border: 1px solid #ddd;
+            position: relative;
+            background-color: rgb(255, 255, 255);
+            border-radius:1rem;
+        }
+        #tree {
+            display: block;
+             /* Default to block */
+        }
+        
+        #input-form {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>N-Queens Problem</h1>
+<p>Solution for N-Queens and the State-Space Tree</p>
+
+<!-- User Input Form -->
+<div id="input-form">
+    <label for="board-size">Enter board size (n): </label>
+    <input type="number" id="board-size" min="1" value="4">
+    
+    <label for="algorithm-select">Select algorithm: </label>
+    <select id="algorithm-select">
+        <option value="DFS">Depth First Search</option>
+        <option value="BFS">Breadth First Search</option>
+        <option value="UCS">Uniform Cost Search</option>
+        <option value="AStar">A*</option>
+        <option value="HillClimbing">Hill Climbing</option>
+        <option value="Greedy">Greedy Best First Search</option>
+        <option value="ID">Iterative Deepening</option>
+        <option value="GA">Genetic Algorithms</option>
+    </select>
+    
+    <button onclick="startNQueens()">Solve</button>
+</div>
+
+<!-- Chessboard Display -->
+<div id="chessboard"></div>
+
+<!-- State-Space Tree Container -->
+<div id="tree-container">
+    <div id="tree"></div>
+</div>
+
+<!-- vis.js library for state-space tree visualization -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+
+<script>
+// N-Queens Solver in JavaScript (DFS as an example)
+function isSafe(board, row, col, n) {
+    for (let i = 0; i < row; i++) {
+        if (board[i][col] === 'Q') return false;
+        if (col - (row - i) >= 0 && board[i][col - (row - i)] === 'Q') return false;
+        if (col + (row - i) < n && board[i][col + (row - i)] === 'Q') return false;
+    }
+    return true;
+}
+
+function solveNQueensUtil(board, row, n, solutions, treeNodes, treeEdges, nodeCounter, parentNode) {
+    if (row === n) {
+        solutions.push(board.map(row => row.slice()));
+        return nodeCounter;
+    }
+    
+    for (let col = 0; col < n; col++) {
+        if (isSafe(board, row, col, n)) {
+            board[row][col] = 'Q';
+            nodeCounter++;
+            treeNodes.push({ id: nodeCounter, label: `Row ${row}, Col ${col}` });
+            treeEdges.push({ from: parentNode, to: nodeCounter });
+            nodeCounter = solveNQueensUtil(board, row + 1, n, solutions, treeNodes, treeEdges, nodeCounter, nodeCounter);
+            board[row][col] = '.';
+        }
+    }
+    return nodeCounter;
+}
+
+function solveNQueens(n) {
+    let board = Array.from({ length: n }, () => Array(n).fill('.'));
+    let solutions = [];
+    let treeNodes = [{ id: 0, label: 'Start' }];
+    let treeEdges = [];
+    solveNQueensUtil(board, 0, n, solutions, treeNodes, treeEdges, 0, 0);
+    return { solutions, treeNodes, treeEdges };
+}
+
+function createChessboard(solution) {
+    const chessboard = document.getElementById('chessboard');
+    chessboard.style.gridTemplateColumns = `repeat(${solution.length}, 50px)`;
+    chessboard.innerHTML = '';
+    for (let row = 0; row < solution.length; row++) {
+        for (let col = 0; col < solution.length; col++) {
+            const square = document.createElement('div');
+            square.className = `square ${((row + col) % 2 === 0) ? 'white' : 'black'}`;
+            if (solution[row][col] === 'Q') {
+                square.innerHTML = '<span class="queen" >♛</span>';
+            }
+            chessboard.appendChild(square);
+        }
+    }
+}
+
+function createTree(treeNodes, treeEdges) {
+    const container = document.getElementById('tree');
+    const data = {
+        nodes: new vis.DataSet(treeNodes),
+        edges: new vis.DataSet(treeEdges)
+    };
+    const options = {
+        layout: {
+            hierarchical: {
+                direction: 'UD',  // Up to Down
+                sortMethod: 'directed'
+            }
+        },
+        edges: {
+            arrows: 'to'
+        }
+    };
+    new vis.Network(container, data, options);
+}
+
+// Function to handle user input and start solving
+function startNQueens() {
+    const n = parseInt(document.getElementById('board-size').value);  // Get board size from user input
+    const algorithm = document.getElementById('algorithm-select').value;  // Get selected algorithm
+    if (n < 1) {
+        alert("Please enter a valid number greater than 0");
+        return;
+    }
+
+    // Currently only DFS is implemented. You can implement other algorithms based on the selected option.
+    const { solutions, treeNodes, treeEdges } = solveNQueens(n); // Call the N-Queens solver.
+
+    // Display the first solution
+    if (solutions.length > 0) {
+        createChessboard(solutions[0]);
+        createTree(treeNodes, treeEdges);
+    } else {
+        alert("No solution found");
+    }
+}
+</script>
+
+</body>
+</html>
